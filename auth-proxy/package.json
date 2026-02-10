@@ -1,0 +1,15 @@
+{
+  "name": "cipp-auth-proxy",
+  "version": "1.0.0",
+  "description": "SWA-compatible auth proxy for self-hosted CIPP",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "http-proxy-middleware": "^3.0.0",
+    "openid-client": "^5.7.0"
+  }
+}

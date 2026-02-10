@@ -1,0 +1,9 @@
+{
+  "name": "cipp-setup",
+  "version": "1.0.0",
+  "description": "Seeds Azurite DevSecrets table with SAM credentials for self-hosted CIPP",
+  "main": "seed.js",
+  "dependencies": {
+    "@azure/data-tables": "^13.2.2"
+  }
+}

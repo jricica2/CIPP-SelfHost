@@ -1,0 +1,19 @@
+# Secrets - NEVER commit these
+.env
+
+# Node.js
+node_modules/
+auth-proxy/node_modules/
+setup/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker build artifacts
+auth-proxy/package-lock.json
+setup/package-lock.json

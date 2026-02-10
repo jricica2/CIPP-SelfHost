@@ -1,0 +1,114 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Azurite: Azure Storage Emulator (Table, Blob, Queue)
+  # Replaces Azure Storage Account and Azure Key Vault
+  # ---------------------------------------------------------------------------
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: cipp-azurite
+    volumes:
+      - azurite-data:/data
+    networks:
+      - cipp-network
+    environment:
+      - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNoBnZf6KgBVU4=
+
+  # ---------------------------------------------------------------------------
+  # Setup: One-shot container that seeds SAM credentials into Azurite
+  # Runs once on first startup, then exits
+  # ---------------------------------------------------------------------------
+  setup:
+    build:
+      context: ./setup
+      dockerfile: Dockerfile
+    container_name: cipp-setup
+    environment:
+      - SAM_APPLICATION_ID=${SAM_APPLICATION_ID}
+      - SAM_APPLICATION_SECRET=${SAM_APPLICATION_SECRET}
+      - SAM_TENANT_ID=${SAM_TENANT_ID}
+      - SAM_REFRESH_TOKEN=${SAM_REFRESH_TOKEN}
+    depends_on:
+      - azurite
+    networks:
+      - cipp-network
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # CIPP API: Azure Functions PowerShell runtime (3 replicas)
+  # Uses the existing Dockerfile from CIPP-API repo
+  # ---------------------------------------------------------------------------
+  cippapi:
+    build:
+      context: ../CIPP-API
+      dockerfile: Dockerfile
+    environment:
+      - FUNCTIONS_WORKER_RUNTIME=powershell
+      - FUNCTIONS_WORKER_RUNTIME_VERSION=7.4
+      - AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNoBnZf6KgBVU4=;BlobEndpoint=http://cipp-azurite:10000/devstoreaccount1;QueueEndpoint=http://cipp-azurite:10001/devstoreaccount1;TableEndpoint=http://cipp-azurite:10002/devstoreaccount1;
+      - NonLocalHostAzurite=true
+      - FUNCTIONS_EXTENSION_VERSION=4
+      - WEBSITE_HOSTNAME=cippapi
+      - WEBSITE_SITE_NAME=cipp-selfhost
+      - AzureWebJobs.BestPracticeAnalyser_OrchestrationStarterTimer.Disabled=true
+      - AzureWebJobs.Domain_OrchestrationStarterTimer.Disabled=true
+    depends_on:
+      - azurite
+      - setup
+    networks:
+      - cipp-network
+    deploy:
+      replicas: 3
+
+  # ---------------------------------------------------------------------------
+  # Nginx: Load balancer for API replicas
+  # Uses the existing nginx.conf from CIPP-API repo
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: cipp-nginx
+    volumes:
+      - ../CIPP-API/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - cippapi
+    networks:
+      cipp-network:
+        aliases:
+          - nginx-api
+
+  # ---------------------------------------------------------------------------
+  # Auth Proxy: SWA-compatible auth layer + static frontend server
+  # Emulates /.auth/me, /.auth/login/aad, /.auth/logout
+  # Injects x-ms-client-principal headers on /api/* requests
+  #
+  # Exposed on port 3000 for your reverse proxy (Pangolin, Caddy, etc.)
+  # ---------------------------------------------------------------------------
+  auth-proxy:
+    build:
+      context: ./auth-proxy
+      dockerfile: Dockerfile
+    container_name: cipp-auth-proxy
+    ports:
+      - "3000:3000"
+    environment:
+      - AZURE_AD_TENANT_ID=${PORTAL_TENANT_ID}
+      - AZURE_AD_CLIENT_ID=${PORTAL_CLIENT_ID}
+      - AZURE_AD_CLIENT_SECRET=${PORTAL_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CALLBACK_URL=https://${CIPP_HOSTNAME}/auth/callback
+      - API_BACKEND_URL=http://nginx-api:80
+      - CIPP_HOSTNAME=${CIPP_HOSTNAME}
+      - DEFAULT_ADMIN_UPN=${DEFAULT_ADMIN_UPN}
+      - FRONTEND_DIR=/app/frontend
+    volumes:
+      - ../CIPP/out:/app/frontend:ro
+    depends_on:
+      - nginx
+    networks:
+      - cipp-network
+
+volumes:
+  azurite-data:
+
+networks:
+  cipp-network:
+    driver: bridge

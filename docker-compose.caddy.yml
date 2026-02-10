@@ -1,0 +1,34 @@
+# Optional Caddy override for standalone HTTPS (no Pangolin/external reverse proxy)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+#
+# This adds a Caddy container that handles HTTPS termination with automatic
+# self-signed certs (tls internal) or Let's Encrypt (remove "tls internal"
+# from the Caddyfile and use a real domain name).
+
+services:
+  auth-proxy:
+    # Override: remove host port mapping since Caddy handles external traffic
+    ports: !override []
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: cipp-caddy
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      - CIPP_HOSTNAME=${CIPP_HOSTNAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - auth-proxy
+    networks:
+      - cipp-network
+
+volumes:
+  caddy-data:
+  caddy-config:

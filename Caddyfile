@@ -1,0 +1,18 @@
+# CIPP Self-Hosted Reverse Proxy
+#
+# For LAN-only access (self-signed certs):
+#   Set CIPP_HOSTNAME to your server IP or hostname (e.g., 192.168.1.100)
+#   "tls internal" generates a self-signed cert automatically.
+#   Browsers will show a certificate warning - accept it or install the
+#   Caddy root CA from caddy-data volume.
+#
+# For public access with Let's Encrypt:
+#   Set CIPP_HOSTNAME to a real domain (e.g., cipp.yourdomain.com)
+#   Remove the "tls internal" line. Caddy will auto-provision a cert.
+#   Ensure ports 80 and 443 are accessible from the internet.
+
+{$CIPP_HOSTNAME:localhost} {
+	tls internal
+
+	reverse_proxy auth-proxy:3000
+}
