@@ -5,9 +5,9 @@ const AZURITE_CONN =
   process.env.AZURITE_CONNECTION_STRING ||
   "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
     "AccountKey=Eby8vdM02xNoBnZf6KgBVU4=;" +
-    "BlobEndpoint=http://azurite:10000/devstoreaccount1;" +
-    "QueueEndpoint=http://azurite:10001/devstoreaccount1;" +
-    "TableEndpoint=http://azurite:10002/devstoreaccount1;";
+    "BlobEndpoint=http://cipp-azurite:10000/devstoreaccount1;" +
+    "QueueEndpoint=http://cipp-azurite:10001/devstoreaccount1;" +
+    "TableEndpoint=http://cipp-azurite:10002/devstoreaccount1;";
 
 const SAM_APPLICATION_ID = process.env.SAM_APPLICATION_ID;
 const SAM_APPLICATION_SECRET = process.env.SAM_APPLICATION_SECRET;
@@ -98,11 +98,56 @@ async function seedDevSecrets() {
   console.log("  TenantID: " + SAM_TENANT_ID);
 }
 
+async function seedTenantMode() {
+  const client = TableClient.fromConnectionString(AZURITE_CONN, "tenantMode");
+
+  // Create the table if it doesn't exist
+  try {
+    await client.createTable();
+    console.log("Created tenantMode table.");
+  } catch (err) {
+    if (err.statusCode === 409) {
+      console.log("tenantMode table already exists.");
+    } else {
+      throw err;
+    }
+  }
+
+  // Check if already configured
+  try {
+    const existing = await client.getEntity("Setting", "PartnerModeSetting");
+    if (existing && existing.state) {
+      console.log(
+        "Tenant mode already set to: " + existing.state + ". Skipping."
+      );
+      return;
+    }
+  } catch (err) {
+    if (err.statusCode !== 404) {
+      throw err;
+    }
+  }
+
+  // Set tenant mode to "owntenant" for single-tenant self-hosted deployments.
+  // This tells CIPP to discover the SAM app's own tenant instead of looking
+  // for GDAP/delegated admin relationships (which is the MSP model).
+  await client.upsertEntity(
+    {
+      partitionKey: "Setting",
+      rowKey: "PartnerModeSetting",
+      state: "owntenant",
+    },
+    "Replace"
+  );
+  console.log("Tenant mode set to: owntenant");
+}
+
 async function main() {
   console.log("=== CIPP Self-Host Setup ===");
 
   await waitForAzurite();
   await seedDevSecrets();
+  await seedTenantMode();
 
   console.log("=== Setup complete ===");
 }

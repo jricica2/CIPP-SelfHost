@@ -76,9 +76,12 @@ function buildClientPrincipal(user) {
 
   const roles = ["authenticated", "anonymous"];
 
-  // Grant admin role to the default admin user
+  // Grant admin + superadmin roles to the default admin user.
+  // superadmin is required for CIPP.SuperAdmin.* operations such as
+  // Tenant Mode configuration, which is needed for single-tenant setups.
   if (DEFAULT_ADMIN_UPN && user.email.toLowerCase() === DEFAULT_ADMIN_UPN) {
     roles.push("admin");
+    roles.push("superadmin");
   }
 
   return {
