@@ -15,7 +15,7 @@ const SAM_TENANT_ID = process.env.SAM_TENANT_ID;
 const SAM_REFRESH_TOKEN = process.env.SAM_REFRESH_TOKEN;
 
 async function waitForAzurite(maxRetries = 30, delayMs = 2000) {
-  const serviceClient = TableServiceClient.fromConnectionString(AZURITE_CONN);
+  const serviceClient = TableServiceClient.fromConnectionString(AZURITE_CONN, { allowInsecureConnection: true });
   for (let i = 0; i < maxRetries; i++) {
     try {
       // Try to list tables - if Azurite is up, this succeeds
@@ -34,7 +34,7 @@ async function waitForAzurite(maxRetries = 30, delayMs = 2000) {
 }
 
 async function seedDevSecrets() {
-  const client = TableClient.fromConnectionString(AZURITE_CONN, "DevSecrets");
+  const client = TableClient.fromConnectionString(AZURITE_CONN, "DevSecrets", { allowInsecureConnection: true });
 
   // Create the table if it doesn't exist
   try {
@@ -99,7 +99,7 @@ async function seedDevSecrets() {
 }
 
 async function seedTenantMode() {
-  const client = TableClient.fromConnectionString(AZURITE_CONN, "tenantMode");
+  const client = TableClient.fromConnectionString(AZURITE_CONN, "tenantMode", { allowInsecureConnection: true });
 
   // Create the table if it doesn't exist
   try {
