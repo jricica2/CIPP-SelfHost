@@ -176,6 +176,23 @@ app.get("/.auth/logout", (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// /api/me: Return clientPrincipal directly for unauthenticated users
+// ---------------------------------------------------------------------------
+// The CIPP frontend calls /api/me to check user roles. When unauthenticated,
+// the backend returns 403 (Test-CIPPAccess throws on null Roles), which causes
+// the frontend to get stuck in a loading loop. Instead, we intercept /api/me
+// here: if the user has no session, return { clientPrincipal: null } directly
+// (matching Azure SWA behavior). If authenticated, fall through to the proxy.
+app.get("/api/me", (req, res, next) => {
+  if (req.session && req.session.user) {
+    // Authenticated: let it fall through to the proxy middleware below
+    return next();
+  }
+  // Not authenticated: return null clientPrincipal (SWA behavior)
+  res.json({ clientPrincipal: null });
+});
+
+// ---------------------------------------------------------------------------
 // API Proxy: /api/* -> backend with SWA-compatible headers
 // ---------------------------------------------------------------------------
 app.use(
