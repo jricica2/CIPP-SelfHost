@@ -45,17 +45,21 @@ prompt_value() {
   fi
 
   if [ "$is_secret" = "true" ]; then
-    read -s -p "$prompt: " value
-    echo ""
+    # Print prompt to stderr so it doesn't get captured by $()
+    printf "%s: " "$prompt" >&2
+    read -s value < /dev/tty
+    echo "" >&2
   else
-    read -p "$prompt: " value
+    printf "%s: " "$prompt" >&2
+    read value < /dev/tty
   fi
 
   if [ -z "$value" ]; then
     value="$default"
   fi
 
-  echo "$value"
+  # Only the value goes to stdout (for capture by $())
+  printf "%s" "$value"
 }
 
 prompt_required() {
@@ -67,7 +71,7 @@ prompt_required() {
   while true; do
     value="$(prompt_value "$prompt" "$default" "$is_secret")"
     if [ -n "$value" ]; then
-      echo "$value"
+      printf "%s" "$value"
       return
     fi
     echo "  ERROR: This value is required." >&2
