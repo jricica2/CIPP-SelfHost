@@ -203,6 +203,14 @@ app.use(
     delete req.headers["x-ms-client-principal-name"];
     delete req.headers["x-ms-client-principal-idp"];
 
+    // Inject x-ms-original-url: Azure SWA provides this header containing the
+    // full original request URL. Many CIPP-API endpoints use it to construct
+    // redirect URIs and callback URLs (e.g., SAM setup, webhooks, extensions).
+    // Express strips the mount path ("/api") from req.url, so we re-prepend it.
+    const proto = req.headers["x-forwarded-proto"] || "https";
+    const host = req.headers["x-forwarded-host"] || req.headers["host"];
+    req.headers["x-ms-original-url"] = proto + "://" + host + "/api" + req.url;
+
     // Inject SWA-compatible headers if user is authenticated
     if (req.session && req.session.user) {
       const principal = buildClientPrincipal(req.session.user);
