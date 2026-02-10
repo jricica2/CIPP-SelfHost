@@ -205,6 +205,10 @@ app.use(
     target: API_BACKEND_URL,
     changeOrigin: true,
     ws: false,
+    // Express strips the mount path ("/api") before forwarding to the proxy.
+    // Azure Functions expects the full path (e.g., /api/me, /api/ExecSAMSetup),
+    // so we re-prepend "/api" to restore the original path.
+    pathRewrite: (p) => "/api" + p,
     on: {
       error: (err, _req, res) => {
         console.error("API proxy error:", err.message);
